@@ -1,0 +1,42 @@
+{
+  "infant": [
+    {
+      "age": "Birth",
+      "vaccine": "BCG, HepB-1, OPV-0"
+    },
+    {
+      "age": "6 weeks",
+      "vaccine": "DTwP/DTP, IPV-1, Hib-1, HepB-2, Rotavirus-1, PCV-1"
+    },
+    {
+      "age": "10 weeks",
+      "vaccine": "DTwP/DTP, IPV-2, Hib-2, Rotavirus-2"
+    },
+    {
+      "age": "14 weeks",
+      "vaccine": "DTwP/DTP, IPV-3, Hib-3, Rotavirus-3, PCV-2"
+    }
+  ],
+  "child": [
+    {
+      "age": "9-12 months",
+      "vaccine": "Measles-Rubella-1, JE-1 (endemic areas)"
+    },
+    {
+      "age": "16-24 months",
+      "vaccine": "DTwP/DTP booster-1, Hib booster, IPV booster, PCV booster, MR-2"
+    }
+  ],
+  "adolescent": [
+    {
+      "age": "10-12 years",
+      "vaccine": "Tdap/Td, HPV (as per eligibility)"
+    }
+  ],
+  "adult": [
+    {
+      "age": "≥19 years",
+      "vaccine": "Td booster every 10 years; Influenza annually for risk groups"
+    }
+  ]
+}

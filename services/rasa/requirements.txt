@@ -1,0 +1,4 @@
+rasa==3.6.20
+rasa-sdk==3.6.2
+transformers>=4.41.0
+torch>=2.2.0

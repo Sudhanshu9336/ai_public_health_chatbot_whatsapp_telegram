@@ -1,0 +1,37 @@
+version: "3.1"
+rules:
+- rule: say goodbye
+  steps:
+  - intent: goodbye
+  - action: utter_goodbye
+
+- rule: thanks
+  steps:
+  - intent: thanks
+  - action: utter_thanks
+
+- rule: prevention
+  steps:
+  - intent: ask_prevention
+  - action: action_prevention_tips
+
+- rule: outbreaks
+  steps:
+  - intent: ask_outbreaks
+  - action: action_outbreaks
+
+- rule: set language
+  steps:
+  - intent: set_language
+  - action: action_set_language
+
+- rule: unsubscribe
+  steps:
+  - intent: unsubscribe_alerts
+  - action: action_unsubscribe
+
+- rule: fallback
+  steps:
+  - intent: nlu_fallback
+  - action: action_fallback
+  - action: utter_disclaimer

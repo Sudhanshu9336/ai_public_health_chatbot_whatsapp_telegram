@@ -1,0 +1,17 @@
+{
+  "last_updated": "2025-09-01T10:00:00Z",
+  "alerts": [
+    {
+      "region": "Khordha",
+      "disease": "Dengue",
+      "severity": "medium",
+      "advice": "Use mosquito repellents, dry stagnant water, sleep under nets."
+    },
+    {
+      "region": "Cuttack",
+      "disease": "Influenza",
+      "severity": "low",
+      "advice": "Wear masks in crowded places, get vaccinated if eligible."
+    }
+  ]
+}

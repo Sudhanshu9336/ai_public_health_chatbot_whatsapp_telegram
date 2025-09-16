@@ -1,0 +1,46 @@
+version: "3.0"
+intents:
+  - greet
+  - goodbye
+  - ask_symptoms
+  - ask_prevention
+  - ask_vaccine
+  - subscribe
+  - unsubscribe
+  - outbreak
+  - thanks
+  - fallback
+
+entities:
+  - disease
+  - location
+  - phone
+slots:
+  language:
+    type: text
+  phone:
+    type: text
+
+responses:
+  utter_greet:
+    - text: "Hello! I can help with health info (symptoms, prevention, vaccines). How can I help?"
+  utter_goodbye:
+    - text: "Goodbye — stay safe!"
+  utter_ask_disease:
+    - text: "Which disease are you asking about (dengue, malaria, COVID)?"
+  utter_fallback:
+    - text: "Sorry, I didn't understand. Could you rephrase?"
+  utter_symptoms:
+    - text: "Symptoms vary by disease. Please tell me which disease you want symptoms for."
+  utter_prevention:
+    - text: "Prevention tips include keeping surroundings clean and avoiding mosquito breeding sites."
+  utter_vaccine_schedule:
+    - text: "Vaccination schedules differ by vaccine. Please tell me which vaccine or age group."
+
+actions:
+  - action_lookup_symptoms
+  - action_prevention_tips
+  - action_vaccine_schedule
+  - action_subscribe
+  - action_unsubscribe
+  - action_fallback

@@ -1,0 +1,19 @@
+version: "3.1"
+stories:
+- story: greet and ask symptoms
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: ask_symptoms
+  - action: action_lookup_symptoms
+
+- story: subscribe flow
+  steps:
+  - intent: subscribe_alerts
+  - action: utter_ask_phone
+  - action: action_subscribe
+
+- story: vaccine flow
+  steps:
+  - intent: ask_vaccine_schedule
+  - action: action_vaccine_schedule

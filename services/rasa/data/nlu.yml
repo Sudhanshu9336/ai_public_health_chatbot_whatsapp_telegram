@@ -1,0 +1,78 @@
+version: "3.1"
+nlu:
+- intent: greet
+  examples: |
+    - hi
+    - hello
+    - namaste
+    - नमस्ते
+    - ନମସ୍କାର
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you
+    - अलविदा
+    - ପୁନର୍ଦେଖା
+
+- intent: thanks
+  examples: |
+    - thanks
+    - thank you
+    - शुक्रिया
+
+- intent: ask_symptoms
+  examples: |
+    - What are the symptoms of [dengue](disease)?
+    - dengue ke lakshan kya hai
+    - डेंगू के लक्षण
+    - ଡେଙ୍ଗୁର ଲକ୍ଷଣ
+
+- intent: ask_prevention
+  examples: |
+    - How to prevent [malaria](disease)?
+    - malaria se bachav kaise kare
+    - मलेरिया से बचाव
+    - ମାଲେରିଆ ପ୍ରତିରୋଧ
+
+- intent: ask_vaccine_schedule
+  examples: |
+    - vaccination schedule for infants
+    - बच्चे का टीकाकरण समय
+    - ଶିଶୁ ଟୀକାକରଣ ସମୟସୂଚୀ
+    - Which vaccines for 10 weeks?
+
+- intent: ask_outbreaks
+  examples: |
+    - any outbreaks in [Khordha](location)?
+    - Cuttack me kya bimari fail rahi hai
+    - ओडिशा में प्रकोप
+    - ଖୋର୍ଦ୍ଧାରେ ରୋଗ ପ୍ରକୋପ
+
+- intent: subscribe_alerts
+  examples: |
+    - subscribe me for alerts
+    - WhatsApp alerts chalu karo
+    - अलर्ट चाहिए
+    - ସୂଚନା ପାଇବାକୁ ଚାହେଁ
+
+- intent: unsubscribe_alerts
+  examples: |
+    - stop alerts
+    - unsubscribe
+    - अलर्ट बंद करो
+    - ସୂଚନା ବନ୍ଦ କର
+
+- intent: set_language
+  examples: |
+    - lang en
+    - lang hi
+    - lang or
+    - set language to Hindi
+    - हिंदी में
+
+- intent: nlu_fallback
+  examples: |
+    - asdfgh
+    - ?????

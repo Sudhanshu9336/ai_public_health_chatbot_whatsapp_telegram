@@ -1,0 +1,19 @@
+# Python
+*.pyc
+__pycache__/
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Rasa
+models/
+results/
+
+# Env
+.env
+*.db
+
+# VSCode
+.vscode/

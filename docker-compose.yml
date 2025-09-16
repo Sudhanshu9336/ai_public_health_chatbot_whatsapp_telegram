@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  rasa:
+    image: rasa/rasa:3.6.20
+    working_dir: /app
+    volumes:
+      - ./services/rasa:/app
+    command: >
+      bash -c "pip install -r requirements.txt && rasa train && rasa run --enable-api --cors '*' -p 5005"
+    ports:
+      - "5005:5005"
+
+  actions:
+    image: rasa/rasa-sdk:3.6.2
+    working_dir: /app
+    volumes:
+      - ./services/rasa:/app
+    command: ["rasa", "run", "actions", "-p", "5055"]
+    ports:
+      - "5055:5055"
+    depends_on:
+      - rasa
+
+  backend:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./services/backend:/app
+      - ./data:/app/data
+      - ./vaccines:/app/vaccines
+    environment:
+      - RASA_BASE_URL=http://rasa:5005
+      - SQLITE_DB=/app/data/healthbot.sqlite
+    command: bash -c "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - rasa
+      - actions
+
+  frontend:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - ./services/frontend:/app
+    command: bash -c "npm i && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

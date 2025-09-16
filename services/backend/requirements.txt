@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+httpx
+sqlmodel
+sqlalchemy
+python-dotenv
+google-generativeai
+pydantic
