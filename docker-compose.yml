@@ -1,20 +1,26 @@
-version: "3.9"
+version: '3.8'
+
 services:
   rasa:
-    image: rasa/rasa:3.6.20
-    working_dir: /app
-    volumes:
-      - ./services/rasa:/app
-    command: >
-      bash -c "pip install -r requirements.txt && rasa train && rasa run --enable-api --cors '*' -p 5005"
+    build:
+      context: ./services/rasa
+      dockerfile: Dockerfile
     ports:
       - "5005:5005"
+    volumes:
+      - ./services/rasa:/app
+      - ./services/rasa/models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   actions:
     image: rasa/rasa-sdk:3.6.2
     working_dir: /app
     volumes:
-      - ./services/rasa:/app
+      - ./services/rasa/actions:/app/actions
     command: ["rasa", "run", "actions", "-p", "5055"]
     ports:
       - "5055:5055"
@@ -22,29 +28,42 @@ services:
       - rasa
 
   backend:
-    image: python:3.11-slim
-    working_dir: /app
-    volumes:
-      - ./services/backend:/app
-      - ./data:/app/data
-      - ./vaccines:/app/vaccines
-    environment:
-      - RASA_BASE_URL=http://rasa:5005
-      - SQLITE_DB=/app/data/healthbot.sqlite
-    command: bash -c "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      - RASA_BASE_URL=http://rasa:5005
+      - DATABASE_URL=sqlite:///data/healthbot.sqlite
+    volumes:
+      - ./data:/app/data
+      - ./vaccines:/app/vaccines
     depends_on:
       - rasa
       - actions
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
-    image: node:20
-    working_dir: /app
-    volumes:
-      - ./services/frontend:/app
-    command: bash -c "npm i && npm run dev -- --host 0.0.0.0"
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
     ports:
-      - "5173:5173"
+      - "80:80"
     depends_on:
       - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  default:
+    name: healthbot-network

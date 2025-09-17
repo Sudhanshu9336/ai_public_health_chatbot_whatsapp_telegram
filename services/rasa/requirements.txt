@@ -1,4 +1,6 @@
-rasa==3.6.20
+rasa==3.6.2
 rasa-sdk==3.6.2
-transformers>=4.41.0
-torch>=2.2.0
+transformers>=4.35.0
+torch>=2.1.0
+tensorflow>=2.13.0
+protobuf>=4.24.0

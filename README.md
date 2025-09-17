@@ -33,54 +33,93 @@ A full-stack implementation:
 
 ---
 
-## Quick Start (Local, no Docker)
-1) **Rasa + Actions**
+## Quick Start
+
+### Using Docker (Recommended)
+
+1. Clone the repository:
 ```bash
-# terminal 1
+git clone https://github.com/Sudhanshu9336/ai_public_health_chatbot_whatsapp_telegram.git
+cd ai_public_health_chatbot_whatsapp_telegram
+```
+
+2. Configure environment variables:
+```bash
+# Copy and edit environment files
+cp services/backend/.env.example services/backend/.env
+# Edit .env with your API keys (WhatsApp/Telegram/Gemini)
+```
+
+3. Build and run with Docker:
+```bash
+docker compose up --build
+```
+
+Services will be available at:
+- Frontend Dashboard: http://localhost
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
+- Rasa Server: http://localhost:5005
+
+### Local Development Setup
+
+1. **Rasa Setup**:
+```bash
+# Terminal 1 - Rasa API
 cd services/rasa
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+.\.venv\Scripts\activate  # Windows
+# OR
+source .venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 rasa train
 rasa run --enable-api --cors "*" -p 5005
 
-# terminal 2 (actions server)
+# Terminal 2 - Rasa Actions
 cd services/rasa
-source .venv/bin/activate
+.\.venv\Scripts\activate  # Windows
+# OR
+source .venv/bin/activate  # Linux/Mac
 rasa run actions -p 5055
 ```
 
-2) **Backend (FastAPI)**
+2. **Backend Setup**:
 ```bash
 cd services/backend
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+.\.venv\Scripts\activate  # Windows
+# OR
+source .venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
-cp .env.example .env  # fill values
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-3) **Frontend (React)**
+3. **Frontend Setup**:
 ```bash
 cd services/frontend
-npm i
+npm install
 npm run dev
 ```
 
-### Twilio WhatsApp/SMS
-- In Twilio Console, set the **incoming webhook** to `https://<your-host>/webhook/twilio`
-- For local testing, use `ngrok http 8000` and paste the public URL.
-- Configure **.env** values from `.env.example` files.
+### Environment Configuration
 
----
-
-## Docker Compose (All-in-one)
-```bash
-docker compose up --build
+1. Backend (.env):
+```ini
+WHATSAPP_CLOUD_TOKEN=your_token
+TELEGRAM_BOT_TOKEN=your_bot_token
+RASA_BASE_URL=http://localhost:5005
+GEMINI_API_KEY=your_gemini_key
 ```
-Services:
-- Rasa: `:5005`
-- Actions: `:5055`
-- Backend: `:8000`
-- Frontend: `:5173` (Vite)
+
+2. For WhatsApp Cloud API:
+- Set up a Meta Developer account
+- Configure webhook URL to `https://<your-host>/webhook/whatsapp`
+- Add `WHATSAPP_CLOUD_TOKEN` to .env
+
+3. For Telegram:
+- Create a bot with @BotFather
+- Set webhook: `https://api.telegram.org/bot<token>/setWebhook?url=https://<your-host>/webhook/telegram`
+- Add `TELEGRAM_BOT_TOKEN` to .env
 
 ---
 

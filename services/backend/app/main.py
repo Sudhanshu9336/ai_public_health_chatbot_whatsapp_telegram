@@ -1,3 +1,9 @@
+from fastapi import FastAPI, Request, BackgroundTasks, Body
+from fastapi.responses import PlainTextResponse
+from fastapi.middleware.cors import CORSMiddleware
+import logging
+import httpx
+
 from app.config import RASA_BASE_URL
 from app.db import init_db, add_subscriber, remove_subscriber, list_subscribers, save_broadcast, get_broadcasts
 from app.faqs import find_faq_answer, ask_gemini
@@ -15,29 +21,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-from fastapi import FastAPI, Request, BackgroundTasks, Body
-from fastapi.responses import PlainTextResponse
-from fastapi.middleware.cors import CORSMiddleware
-import logging
-import httpx
 
-from config import RASA_BASE_URL
-from db import init_db, add_subscriber, remove_subscriber, list_subscribers, save_broadcast, get_broadcasts
-from faqs import find_faq_answer, ask_gemini
-from models import OutboundAlert, SubscriberIn
-from messaging_utils import send_whatsapp_cloud, send_telegram
 
-logger = logging.getLogger("uvicorn.error")
-app = FastAPI(title="Public Health Chatbot Backend")
-
-# Allow local frontend & webview to call backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 @app.on_event("startup")
 def startup():

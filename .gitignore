@@ -1,19 +1,53 @@
+# --------------------
 # Python
+# --------------------
 *.pyc
 __pycache__/
-venv/
+.venv/
+*.pyo
+*.pyd
+*.pytest_cache/
+*.coverage
+.coverage.*
+.pytest_cache/
+.mypy_cache/
 
-# Node
+# --------------------
+# Node / Frontend
+# --------------------
 node_modules/
 dist/
+build/
+.npm/
+.vite/
 
+# --------------------
 # Rasa
+# --------------------
 models/
 results/
 
-# Env
+# --------------------
+# Environment & DB
+# --------------------
 .env
 *.db
+*.sqlite3
 
-# VSCode
+# --------------------
+# IDE / Editor files
+# --------------------
 .vscode/
+.idea/
+
+# --------------------
+# OS generated files
+# --------------------
+.DS_Store
+Thumbs.db
+
+# --------------------
+# Docker
+# --------------------
+*.log
+docker-compose.override.yml
