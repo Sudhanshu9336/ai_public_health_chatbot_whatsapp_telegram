@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request, BackgroundTasks, Body
+from fastapi import FastAPI, Request, BackgroundTasks, Body, HTTPException
 from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import httpx
+import os
 
 from app.config import RASA_BASE_URL
 from app.db import init_db, add_subscriber, remove_subscriber, list_subscribers, save_broadcast, get_broadcasts
@@ -10,323 +11,330 @@ from app.faqs import find_faq_answer, ask_gemini
 from app.models import OutboundAlert, SubscriberIn
 from app.messaging_utils import send_whatsapp_cloud, send_telegram
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn.error")
-app = FastAPI(title="Public Health Chatbot Backend")
 
-# Allow local frontend & webview to call backend
+app = FastAPI(
+    title="Public Health Chatbot Backend",
+    description="AI-driven multilingual health chatbot for disease awareness",
+    version="1.0.0"
+)
+
+# CORS middleware for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, specify exact origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-
 @app.on_event("startup")
-def startup():
+async def startup():
+    """Initialize database and services on startup"""
     init_db()
+    logger.info("🚀 Public Health Chatbot Backend started successfully")
 
 @app.get("/health")
-def health():
-    return {"status": "ok"}
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "service": "public-health-chatbot-backend",
+        "version": "1.0.0"
+    }
 
-
-# --- Hybrid handler: FAQ -> Gemini -> (optionally Rasa fallback) ---
+# --- Core Message Processing ---
 async def _handle_message_and_reply(sender: str, message: str, channel: str):
-    # Try FAQ first
-    answer = find_faq_answer(message)
-    if not answer:
-        # Try Gemini fallback (if available)
-        try:
-            answer = await ask_gemini(message)
-        except Exception as e:
-            logger.warning("Gemini not available: %s", e)
-            answer = None
+    """
+    Hybrid message processing: FAQ → Gemini → Rasa fallback
+    """
+    try:
+        # Step 1: Try FAQ first (fastest)
+        answer = find_faq_answer(message)
+        source = "FAQ"
+        
+        if not answer:
+            # Step 2: Try Gemini AI (if available)
+            try:
+                answer = await ask_gemini(message)
+                source = "Gemini"
+            except Exception as e:
+                logger.warning(f"Gemini not available: {e}")
+                answer = None
 
-    # Optionally forward to Rasa if still no answer
-    if not answer:
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.post(
-                    f"{RASA_BASE_URL}/webhooks/rest/webhook",
-                    json={"sender": sender, "message": message},
-                )
-                r.raise_for_status()
-                data = r.json()
-            answer = "\n".join([m.get("text", "") for m in data if m.get("text")])
-        except Exception as e:
-            logger.error("Rasa call failed: %s", e)
-            answer = "Sorry, I couldn't get an answer right now. Please try again later."
+        if not answer:
+            # Step 3: Fallback to Rasa NLP
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.post(
+                        f"{RASA_BASE_URL}/webhooks/rest/webhook",
+                        json={"sender": sender, "message": message},
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                
+                answer = "\n".join([msg.get("text", "") for msg in data if msg.get("text")])
+                source = "Rasa"
+            except Exception as e:
+                logger.error(f"Rasa call failed: {e}")
+                answer = "Sorry, I couldn't process your request right now. Please try again later."
+                source = "Error"
 
-    # Send back via channel
-    if channel == "whatsapp":
-        await send_whatsapp_cloud(sender, answer)
-    elif channel == "telegram":
-        await send_telegram(sender, answer)
-    else:
-        logger.info("Unknown channel, skipping send. channel=%s sender=%s", channel, sender)
+        # Add safety disclaimer for health-related responses
+        if answer and any(keyword in message.lower() for keyword in ['symptom', 'disease', 'medicine', 'treatment']):
+            answer += "\n\n⚠️ This is for information only. Please consult a healthcare professional for medical advice."
 
+        # Send response via appropriate channel
+        if channel == "whatsapp":
+            result = await send_whatsapp_cloud(sender, answer)
+        elif channel == "telegram":
+            result = await send_telegram(sender, answer)
+        else:
+            logger.warning(f"Unknown channel: {channel}")
+            return
 
-# --- Webhook endpoints ---
+        logger.info(f"Message processed - Channel: {channel}, Source: {source}, Status: {result.get('status', 'unknown')}")
+
+    except Exception as e:
+        logger.error(f"Error processing message: {e}")
+        # Send error message to user
+        error_msg = "Sorry, there was a technical issue. Please try again."
+        if channel == "whatsapp":
+            await send_whatsapp_cloud(sender, error_msg)
+        elif channel == "telegram":
+            await send_telegram(sender, error_msg)
+
+# --- Webhook Endpoints ---
 @app.post("/webhook/whatsapp", response_class=PlainTextResponse)
 async def webhook_whatsapp(request: Request, background_tasks: BackgroundTasks):
-    payload = await request.json()
+    """WhatsApp Cloud API webhook handler"""
     try:
-        entry = payload.get("entry", [])[0]
-        changes = entry.get("changes", [])[0]
-        value = changes.get("value", {})
-        messages = value.get("messages") or []
+        payload = await request.json()
+        
+        # Parse WhatsApp webhook payload
+        entry = payload.get("entry", [])
+        if not entry:
+            return "OK"
+            
+        changes = entry[0].get("changes", [])
+        if not changes:
+            return "OK"
+            
+        value = changes[0].get("value", {})
+        messages = value.get("messages", [])
+        
         if not messages:
             return "OK"
-        msg = messages[0]
-        from_number = msg.get("from")
-        text = (msg.get("text", {}) or {}).get("body") or msg.get("body") or ""
-    except Exception:
-        return "OK"
-
-    background_tasks.add_task(_handle_message_and_reply, from_number, text, "whatsapp")
-    return "200"
-
+            
+        message = messages[0]
+        from_number = message.get("from")
+        text_body = message.get("text", {}).get("body", "") if message.get("text") else ""
+        
+        if from_number and text_body:
+            background_tasks.add_task(_handle_message_and_reply, from_number, text_body, "whatsapp")
+            
+    except Exception as e:
+        logger.error(f"WhatsApp webhook error: {e}")
+    
+    return "OK"
 
 @app.post("/webhook/telegram", response_class=PlainTextResponse)
 async def webhook_telegram(request: Request, background_tasks: BackgroundTasks):
-    payload = await request.json()
-    message = payload.get("message") or payload.get("edited_message") or {}
-    text = message.get("text", "") or payload.get("callback_query", {}).get("data", "")
-    chat = message.get("chat", {})
-    chat_id = chat.get("id") or payload.get("callback_query", {}).get("from", {}).get("id")
-    if not chat_id or not text:
-        return "OK"
+    """Telegram Bot API webhook handler"""
+    try:
+        payload = await request.json()
+        
+        # Parse Telegram webhook payload
+        message = payload.get("message", {})
+        if not message:
+            return "OK"
+            
+        chat = message.get("chat", {})
+        chat_id = chat.get("id")
+        text = message.get("text", "")
+        
+        if chat_id and text:
+            background_tasks.add_task(_handle_message_and_reply, str(chat_id), text, "telegram")
+            
+    except Exception as e:
+        logger.error(f"Telegram webhook error: {e}")
+    
+    return "OK"
 
-    background_tasks.add_task(_handle_message_and_reply, str(chat_id), text, "telegram")
-    return "200"
-
-
-# --- Subscribers ---
+# --- Subscriber Management ---
 @app.post("/subscribers")
-def add_subscriber_endpoint(s: SubscriberIn):
-    add_subscriber(s.phone, s.language)
-    return {"ok": True}
-
+async def add_subscriber_endpoint(subscriber: SubscriberIn):
+    """Add new subscriber for alerts"""
+    try:
+        add_subscriber(subscriber.phone, subscriber.language)
+        return {"success": True, "message": "Subscriber added successfully"}
+    except Exception as e:
+        logger.error(f"Error adding subscriber: {e}")
+        raise HTTPException(status_code=500, detail="Failed to add subscriber")
 
 @app.get("/subscribers")
-def get_subscribers_endpoint():
-    subs = list_subscribers()
-    return [{"phone": s.phone, "language": s.language} for s in subs]
-
+async def get_subscribers_endpoint():
+    """Get all subscribers"""
+    try:
+        subscribers = list_subscribers()
+        return [{"phone": s.phone, "language": s.language} for s in subscribers]
+    except Exception as e:
+        logger.error(f"Error fetching subscribers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch subscribers")
 
 @app.delete("/subscribers/{phone}")
-def delete_subscriber(phone: str):
-    remove_subscriber(phone)
-    return {"ok": True}
+async def delete_subscriber_endpoint(phone: str):
+    """Remove subscriber"""
+    try:
+        remove_subscriber(phone)
+        return {"success": True, "message": "Subscriber removed successfully"}
+    except Exception as e:
+        logger.error(f"Error removing subscriber: {e}")
+        raise HTTPException(status_code=500, detail="Failed to remove subscriber")
 
-
-# --- Broadcast ---
+# --- Broadcast System ---
 @app.post("/alerts/broadcast")
-async def broadcast(alert: OutboundAlert):
-    subs = list_subscribers()
-    sent = 0
-    for s in subs:
-        body = alert.text
-        if alert.channel in ["sms", "whatsapp"]:
-            r = await send_whatsapp_cloud(s.phone, body)
-        elif alert.channel in ["telegram", "tg"]:
-            r = await send_telegram(s.phone, body)
-        else:
-            r = {"status": "skipped", "reason": "unknown channel"}
-
-        if r.get("status") == "sent":
-            sent += 1
-
-    save_broadcast(alert.text, alert.channel)
-    return {"sent": sent, "total": len(subs), "saved": True}
-
-
-# --- History ---
-@app.get("/history")
-def history():
-    return [
-        {
-            "id": b.id,
-            "message": b.message,
-            "channel": b.channel,
-            "timestamp": b.timestamp.isoformat(),
+async def broadcast_alert(alert: OutboundAlert):
+    """Broadcast alert to all subscribers"""
+    try:
+        subscribers = list_subscribers()
+        sent_count = 0
+        failed_count = 0
+        
+        for subscriber in subscribers:
+            try:
+                if alert.channel in ["whatsapp", "sms"]:
+                    result = await send_whatsapp_cloud(subscriber.phone, alert.text)
+                elif alert.channel in ["telegram", "tg"]:
+                    result = await send_telegram(subscriber.phone, alert.text)
+                else:
+                    logger.warning(f"Unknown channel: {alert.channel}")
+                    continue
+                
+                if result.get("status") == "sent":
+                    sent_count += 1
+                else:
+                    failed_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Failed to send to {subscriber.phone}: {e}")
+                failed_count += 1
+        
+        # Save broadcast to history
+        save_broadcast(alert.text, alert.channel)
+        
+        return {
+            "success": True,
+            "sent": sent_count,
+            "failed": failed_count,
+            "total": len(subscribers)
         }
-        for b in get_broadcasts()
-    ]
-
-
-# --- /ask for index.html webview ---
-@app.post("/ask")
-async def ask_endpoint(payload: dict = Body(...)):
-    q = payload.get("question") or payload.get("message") or payload.get("text") or ""
-    if not q:
-        return {"answer": "⚠️ Please send a question in JSON as {\"question\": \"...\"}"}
-
-    try:
-        ans = find_faq_answer(q)
-        if not ans:
-            try:
-                ans = await ask_gemini(q)
-            except Exception:
-                ans = None
-
-        if not ans:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.post(
-                    f"{RASA_BASE_URL}/webhooks/rest/webhook",
-                    json={"sender": "webview", "message": q},
-                )
-                r.raise_for_status()
-                data = r.json()
-            ans = "\n".join([m.get("text", "") for m in data if m.get("text")]) or "Sorry, no answer."
-
-        return {"answer": ans}
+        
     except Exception as e:
-        return {"answer": f"Error: {e}"}
+        logger.error(f"Broadcast error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send broadcast")
 
-@app.on_event("startup")
-def startup():
-    init_db()
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-# Hybrid handler: FAQ -> Gemini -> (optionally Rasa fallback)
-async def _handle_message_and_reply(sender: str, message: str, channel: str):
-    # Try FAQ first
-    answer = find_faq_answer(message)
-    if not answer:
-        # Try Gemini fallback (if available)
-        try:
-            answer = await ask_gemini(message)
-        except Exception as e:
-            logger.warning("Gemini not available: %s", e)
-            answer = None
-
-    # Optionally forward to Rasa if still no answer
-    if not answer:
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.post(f"{RASA_BASE_URL}/webhooks/rest/webhook", json={"sender": sender, "message": message})
-                r.raise_for_status()
-                data = r.json()
-            answer = "\n".join([m.get("text","") for m in data if m.get("text")])
-        except Exception as e:
-            logger.error("Rasa call failed: %s", e)
-            answer = "Sorry, I couldn't get an answer right now. Please try again later."
-
-    # Send back via channel
-    if channel == "whatsapp":
-        await send_whatsapp_cloud(sender, answer)
-    elif channel == "telegram":
-        await send_telegram(sender, answer)
-    else:
-        logger.info("Unknown channel, skipping send. channel=%s sender=%s", channel, sender)
-
-# Webhook endpoints (WhatsApp/Telegram)
-@app.post("/webhook/whatsapp", response_class=PlainTextResponse)
-async def webhook_whatsapp(request: Request, background_tasks: BackgroundTasks):
-    payload = await request.json()
-    # minimal parsing for typical Meta WhatsApp Cloud payload
-    try:
-        entry = payload.get("entry", [])[0]
-        changes = entry.get("changes", [])[0]
-        value = changes.get("value", {})
-        messages = value.get("messages") or []
-        if not messages:
-            return "OK"
-        msg = messages[0]
-        from_number = msg.get("from")
-        text = (msg.get("text", {}) or {}).get("body") or msg.get("body") or ""
-    except Exception:
-        return "OK"
-
-    background_tasks.add_task(_handle_message_and_reply, from_number, text, "whatsapp")
-    return "200"
-
-@app.post("/webhook/telegram", response_class=PlainTextResponse)
-async def webhook_telegram(request: Request, background_tasks: BackgroundTasks):
-    payload = await request.json()
-    message = payload.get("message") or payload.get("edited_message") or {}
-    text = message.get("text", "") or payload.get("callback_query", {}).get("data", "")
-    chat = message.get("chat", {})
-    chat_id = chat.get("id") or payload.get("callback_query", {}).get("from", {}).get("id")
-    if not chat_id or not text:
-        return "OK"
-    background_tasks.add_task(_handle_message_and_reply, str(chat_id), text, "telegram")
-    return "200"
-
-# Subscribers
-@app.post("/subscribers")
-def add_subscriber_endpoint(s: SubscriberIn):
-    add_subscriber(s.phone, s.language)
-    return {"ok": True}
-
-@app.get("/subscribers")
-def get_subscribers_endpoint():
-    subs = list_subscribers()
-    return [{"phone": s.phone, "language": s.language} for s in subs]
-
-@app.delete("/subscribers/{phone}")
-def delete_subscriber(phone: str):
-    remove_subscriber(phone)
-    return {"ok": True}
-
-# Broadcast
-@app.post("/alerts/broadcast")
-async def broadcast(alert: OutboundAlert):
-    subs = list_subscribers()
-    sent = 0
-    for s in subs:
-        # accept both "text" and older "message" naming; our OutboundAlert has "text"
-        body = alert.text
-        if alert.channel in ["sms", "whatsapp"]:
-            r = await send_whatsapp_cloud(s.phone, body)
-        elif alert.channel in ["telegram", "tg"]:
-            r = await send_telegram(s.phone, body)
-        else:
-            r = {"status": "skipped", "reason": "unknown channel"}
-        if r.get("status") == "sent":
-            sent += 1
-    save_broadcast(alert.text, alert.channel)
-    return {"sent": sent, "total": len(subs), "saved": True}
-
-# History
+# --- History & Analytics ---
 @app.get("/history")
-def history():
-    from .db import get_broadcasts
-    return [
-        {"id": b.id, "message": b.message, "channel": b.channel, "timestamp": b.timestamp.isoformat()}
-        for b in get_broadcasts()
-    ]
+async def get_broadcast_history():
+    """Get broadcast history"""
+    try:
+        broadcasts = get_broadcasts()
+        return [
+            {
+                "id": b.id,
+                "message": b.message,
+                "channel": b.channel,
+                "timestamp": b.timestamp.isoformat(),
+            }
+            for b in broadcasts
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch history")
 
-# /ask for index.html webview
+# --- Direct Chat API ---
 @app.post("/ask")
 async def ask_endpoint(payload: dict = Body(...)):
-    q = payload.get("question") or payload.get("message") or payload.get("text") or ""
-    if not q:
-        return {"answer": "⚠️ Please send a question in JSON as {\"question\": \"...\"}"}
-    # try FAQ/Gemini/Rasa via the same hybrid helper
-    # For local tests, we can re-use _handle_message_and_reply but it sends outwards.
+    """Direct chat API for testing and web interface"""
     try:
-        # Try FAQ/Gemini/Rasa sequence but return answer directly (not sending over WhatsApp)
-        ans = find_faq_answer(q)
-        if not ans:
+        question = payload.get("question") or payload.get("message") or payload.get("text", "")
+        
+        if not question.strip():
+            return {"answer": "⚠️ Please provide a question"}
+        
+        # Use same processing logic as webhooks
+        answer = find_faq_answer(question)
+        source = "FAQ"
+        
+        if not answer:
             try:
-                ans = await ask_gemini(q)
+                answer = await ask_gemini(question)
+                source = "Gemini"
             except Exception:
-                ans = None
-        if not ans:
-            # call Rasa
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.post(f"{RASA_BASE_URL}/webhooks/rest/webhook", json={"sender": "webview", "message": q})
-                r.raise_for_status()
-                data = r.json()
-            ans = "\n".join([m.get("text","") for m in data if m.get("text")]) or "Sorry, no answer."
-        return {"answer": ans}
+                answer = None
+        
+        if not answer:
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.post(
+                        f"{RASA_BASE_URL}/webhooks/rest/webhook",
+                        json={"sender": "web_user", "message": question},
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                
+                answer = "\n".join([msg.get("text", "") for msg in data if msg.get("text")])
+                source = "Rasa"
+            except Exception as e:
+                logger.error(f"Rasa error in /ask: {e}")
+                answer = "Sorry, I couldn't process your question right now."
+                source = "Error"
+        
+        # Add disclaimer for health queries
+        if answer and any(keyword in question.lower() for keyword in ['symptom', 'disease', 'medicine', 'treatment']):
+            answer += "\n\n⚠️ This is for information only. Please consult a healthcare professional for medical advice."
+        
+        return {
+            "answer": answer,
+            "source": source,
+            "success": True
+        }
+        
     except Exception as e:
-        return {"answer": f"Error: {e}"}
+        logger.error(f"Error in /ask endpoint: {e}")
+        return {
+            "answer": "Sorry, there was an error processing your question.",
+            "source": "Error",
+            "success": False
+        }
+
+# --- Analytics Endpoints ---
+@app.get("/analytics/stats")
+async def get_analytics_stats():
+    """Get basic analytics statistics"""
+    try:
+        subscribers = list_subscribers()
+        broadcasts = get_broadcasts()
+        
+        # Language distribution
+        lang_dist = {}
+        for sub in subscribers:
+            lang = sub.language
+            lang_dist[lang] = lang_dist.get(lang, 0) + 1
+        
+        return {
+            "total_subscribers": len(subscribers),
+            "total_broadcasts": len(broadcasts),
+            "language_distribution": lang_dist,
+            "recent_broadcasts": len([b for b in broadcasts[-10:]]),  # Last 10
+        }
+    except Exception as e:
+        logger.error(f"Analytics error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

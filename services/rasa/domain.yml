@@ -1,46 +1,70 @@
-version: "3.0"
+version: "3.1"
+
 intents:
   - greet
   - goodbye
+  - thanks
   - ask_symptoms
   - ask_prevention
-  - ask_vaccine
-  - subscribe
-  - unsubscribe
-  - outbreak
-  - thanks
-  - fallback
+  - ask_vaccine_schedule
+  - ask_outbreaks
+  - subscribe_alerts
+  - unsubscribe_alerts
+  - set_language
+  - nlu_fallback
 
 entities:
   - disease
   - location
   - phone
+
 slots:
   language:
     type: text
+    initial_value: "en"
+    mappings:
+    - type: custom
   phone:
     type: text
+    mappings:
+    - type: custom
 
 responses:
   utter_greet:
-    - text: "Hello! I can help with health info (symptoms, prevention, vaccines). How can I help?"
+    - text: "🙏 Hello! I'm your health assistant. I can help with symptoms, prevention tips, vaccination schedules, and health alerts. How can I help you today?"
+    - text: "नमस्ते! मैं आपका स्वास्थ्य सहायक हूं। मैं लक्षण, बचाव, टीकाकरण और स्वास्थ्य अलर्ट में मदद कर सकता हूं। आज मैं आपकी कैसे सहायता कर सकता हूं?"
+    - text: "ନମସ୍କାର! ମୁଁ ଆପଣଙ୍କର ସ୍ୱାସ୍ଥ୍ୟ ସହାୟକ। ମୁଁ ଲକ୍ଷଣ, ପ୍ରତିରୋଧ, ଟୀକାକରଣ ଏବଂ ସ୍ୱାସ୍ଥ୍ୟ ସତର୍କତା ସହିତ ସାହାଯ୍ୟ କରିପାରିବି। ଆଜି ମୁଁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?"
+
   utter_goodbye:
-    - text: "Goodbye — stay safe!"
-  utter_ask_disease:
-    - text: "Which disease are you asking about (dengue, malaria, COVID)?"
-  utter_fallback:
-    - text: "Sorry, I didn't understand. Could you rephrase?"
-  utter_symptoms:
-    - text: "Symptoms vary by disease. Please tell me which disease you want symptoms for."
-  utter_prevention:
-    - text: "Prevention tips include keeping surroundings clean and avoiding mosquito breeding sites."
-  utter_vaccine_schedule:
-    - text: "Vaccination schedules differ by vaccine. Please tell me which vaccine or age group."
+    - text: "👋 Take care and stay healthy! Remember to follow prevention tips and consult doctors when needed."
+    - text: "अपना ख्याल रखें और स्वस्थ रहें! बचाव के उपाय अपनाएं और जरूरत पड़ने पर डॉक्टर से सलाह लें।"
+    - text: "ନିଜର ଯତ୍ନ ନିଅନ୍ତୁ ଏବଂ ସୁସ୍ଥ ରୁହନ୍ତୁ! ପ୍ରତିରୋଧ ଉପାୟ ଅନୁସରଣ କରନ୍ତୁ ଏବଂ ଆବଶ୍ୟକ ସମୟରେ ଡାକ୍ତରଙ୍କ ସହିତ ପରାମର୍ଶ କରନ୍ତୁ।"
+
+  utter_thanks:
+    - text: "🙏 You're welcome! Stay healthy and don't hesitate to ask if you have more health questions."
+    - text: "आपका स्वागत है! स्वस्थ रहें और अगर कोई और स्वास्थ्य प्रश्न हो तो पूछने में संकोच न करें।"
+    - text: "ଆପଣଙ୍କୁ ସ୍ୱାଗତ! ସୁସ୍ଥ ରୁହନ୍ତୁ ଏବଂ ଯଦି ଆଉ କୌଣସି ସ୍ୱାସ୍ଥ୍ୟ ପ୍ରଶ୍ନ ଥାଏ ତେବେ ପଚାରିବାକୁ ଦ୍ୱିଧା କରନ୍ତୁ ନାହିଁ।"
+
+  utter_ask_phone:
+    - text: "📱 Please share your phone number with country code (e.g., +91XXXXXXXXXX) to subscribe for health alerts."
+    - text: "कृपया स्वास्थ्य अलर्ट के लिए अपना फोन नंबर कंट्री कोड के साथ शेयर करें (जैसे +91XXXXXXXXXX)।"
+    - text: "ଦୟାକରି ସ୍ୱାସ୍ଥ୍ୟ ସତର୍କତା ପାଇଁ ଆପଣଙ୍କର ଫୋନ ନମ୍ବର ଦେଶ କୋଡ ସହିତ ଶେୟାର କରନ୍ତୁ (ଯେପରି +91XXXXXXXXXX)।"
+
+  utter_disclaimer:
+    - text: "⚠️ **Important:** This information is for educational purposes only. Always consult qualified healthcare professionals for medical advice, diagnosis, or treatment. In emergencies, call 108 or visit the nearest hospital immediately."
+    - text: "⚠️ **महत्वपूर्ण:** यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है। चिकित्सा सलाह, निदान या उपचार के लिए हमेशा योग्य स्वास्थ्य पेशेवरों से सलाह लें। आपातकाल में 108 पर कॉल करें या तुरंत निकटतम अस्पताल जाएं।"
+    - text: "⚠️ **ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ:** ଏହି ସୂଚନା କେବଳ ଶିକ୍ଷାଗତ ଉଦ୍ଦେଶ୍ୟ ପାଇଁ। ଚିକିତ୍ସା ପରାମର୍ଶ, ନିଦାନ କିମ୍ବା ଚିକିତ୍ସା ପାଇଁ ସର୍ବଦା ଯୋଗ୍ୟ ସ୍ୱାସ୍ଥ୍ୟ ପେଶାଦାରଙ୍କ ସହିତ ପରାମର୍ଶ କରନ୍ତୁ। ଜରୁରୀକାଳୀନ ପରିସ୍ଥିତିରେ 108 କୁ କଲ କରନ୍ତୁ କିମ୍ବା ତୁରନ୍ତ ନିକଟସ୍ଥ ହସ୍ପିଟାଲକୁ ଯାଆନ୍ତୁ।"
 
 actions:
   - action_lookup_symptoms
   - action_prevention_tips
   - action_vaccine_schedule
+  - action_outbreaks
   - action_subscribe
   - action_unsubscribe
+  - action_set_language
   - action_fallback
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

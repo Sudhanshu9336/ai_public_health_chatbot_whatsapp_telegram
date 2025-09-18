@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Rasa NLP Server
   rasa:
     build:
       context: ./services/rasa
@@ -10,23 +11,44 @@ services:
     volumes:
       - ./services/rasa:/app
       - ./services/rasa/models:/app/models
+    environment:
+      - RASA_BASE_URL=http://rasa:5005
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5005/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
 
+  # Rasa Actions Server
   actions:
-    image: rasa/rasa-sdk:3.6.2
+    build:
+      context: ./services/rasa
+      dockerfile: Dockerfile
     working_dir: /app
     volumes:
       - ./services/rasa/actions:/app/actions
-    command: ["rasa", "run", "actions", "-p", "5055"]
+      - ./data:/app/data
+      - ./vaccines:/app/vaccines
+    command: ["rasa", "run", "actions", "-p", "5055", "--debug"]
     ports:
       - "5055:5055"
+    environment:
+      - BACKEND_HOST=http://backend:8000
+      - VACCINE_SCHEDULE_PATH=/app/vaccines/vaccine_schedule.json
+      - PUBLIC_HEALTH_ALERTS_FEED_FILE=/app/data/mock_outbreaks.json
     depends_on:
       - rasa
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5055/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
 
+  # FastAPI Backend
   backend:
     build:
       context: ./services/backend
@@ -36,34 +58,53 @@ services:
     environment:
       - RASA_BASE_URL=http://rasa:5005
       - DATABASE_URL=sqlite:///data/healthbot.sqlite
+      - SQLITE_DB=/app/data/healthbot.sqlite
     volumes:
       - ./data:/app/data
       - ./vaccines:/app/vaccines
+      - ./services/backend/.env:/app/.env
     depends_on:
-      - rasa
-      - actions
+      rasa:
+        condition: service_healthy
+      actions:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
+  # React Frontend
   frontend:
     build:
       context: ./services/frontend
       dockerfile: Dockerfile
     ports:
       - "80:80"
-    depends_on:
-      - backend
     environment:
       - VITE_API_URL=http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
+    restart: unless-stopped
 
+# Named volumes for data persistence
+volumes:
+  rasa_models:
+    driver: local
+  app_data:
+    driver: local
+
+# Custom network for service communication
 networks:
   default:
     name: healthbot-network
+    driver: bridge

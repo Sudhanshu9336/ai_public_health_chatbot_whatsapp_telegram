@@ -1,200 +1,309 @@
-# AI-Driven Public Health Chatbot for Disease Awareness (PSID: 25049)
+# AI-Driven Public Health Chatbot for Disease Awareness
 
 **Organization:** Government of Odisha  
 **Department:** Electronics & IT Department  
 **Category:** Software  
-**Theme:** MedTech / BioTech / HealthTech
+**Theme:** MedTech / BioTech / HealthTech  
+**PSID:** 25049
 
-## Problem Statement (Provided)
-Create a multilingual AI chatbot to educate rural and semi-urban populations about preventive healthcare, disease symptoms, and vaccination schedules. The chatbot should integrate with government health databases and provide real-time alerts for outbreaks.
+## 🎯 Problem Statement
 
-### Expected Outcome
-- A chatbot accessible via WhatsApp or SMS
-- Target ≥80% accuracy on health Q&A (with clear disclaimers, safe responses)  
-- Increase awareness by ≥20% in target communities (measured via surveys & engagement analytics)
+Create a multilingual AI chatbot to educate rural and semi-urban populations about preventive healthcare, disease symptoms, and vaccination schedules. The chatbot integrates with government health databases and provides real-time alerts for outbreaks.
 
-### Technical Feasibility
-- Built using NLP frameworks (Rasa OSS 3.x)
-- Integrates APIs for government/public health data (Odisha/Govt. MoHFW/open data portals)
-- Cloud-deployable (Docker + any cloud VM/Kubernetes)
+### 📊 Expected Outcomes
+- ✅ Chatbot accessible via WhatsApp/Telegram
+- ✅ Target ≥80% accuracy on health Q&A with safety disclaimers
+- ✅ Increase awareness by ≥20% in target communities
+- ✅ Multilingual support (English/Hindi/Odia)
 
----
+## 🏗️ Architecture Overview
 
-## What’s in this repository?
-A full-stack implementation:
-- **Rasa** (NLP + Dialogue) — multilingual intents (English/Hindi/Odia), custom actions
-- **FastAPI backend** — Twilio (WhatsApp/SMS) webhook, subscriber DB, alert publisher, API adapters
-- **React + Tailwind frontend** — clean dashboard for outreach & alerting with excellent UX
-- **Data stubs** — vaccine schedule, mock outbreak feed
-- **Docker Compose** — one-command local run
-- **.env templates** — configure Twilio, DB, Rasa, and API endpoints
+```mermaid
+graph TB
+    A[WhatsApp/Telegram] --> B[FastAPI Backend]
+    B --> C{Response Strategy}
+    C -->|1st| D[Static FAQs]
+    C -->|2nd| E[Google Gemini AI]
+    C -->|3rd| F[Rasa NLP Engine]
+    
+    G[React Dashboard] --> B
+    B --> H[SQLite Database]
+    B --> I[Broadcast System]
+    
+    F --> J[Custom Actions]
+    F --> K[Multilingual NLU]
+```
 
-> ⚠️ Health safety note: All answers include a disclaimer and point to official sources. This bot does **not** replace a doctor.
+### 🔧 Tech Stack
+- **Backend:** FastAPI + SQLite + Python 3.11
+- **NLP Engine:** Rasa OSS 3.6.2 + Custom Actions
+- **AI Integration:** Google Gemini API
+- **Frontend:** React 18 + TypeScript + Tailwind CSS
+- **Messaging:** WhatsApp Cloud API + Telegram Bot API
+- **Deployment:** Docker Compose
 
----
+## 🚀 Quick Start
 
-## Quick Start
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (for local development)
+- Python 3.11+ (for local development)
 
-### Using Docker (Recommended)
+### 1. Environment Setup
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/Sudhanshu9336/ai_public_health_chatbot_whatsapp_telegram.git
+# Clone repository
+git clone <repository-url>
 cd ai_public_health_chatbot_whatsapp_telegram
-```
 
-2. Configure environment variables:
-```bash
-# Copy and edit environment files
+# Copy environment files
 cp services/backend/.env.example services/backend/.env
-# Edit .env with your API keys (WhatsApp/Telegram/Gemini)
 ```
 
-3. Build and run with Docker:
+### 2. Configure API Keys
+
+Edit `services/backend/.env`:
+```env
+# Required for AI responses
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Required for WhatsApp
+WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
+WHATSAPP_CLOUD_TOKEN=your_whatsapp_token
+
+# Required for Telegram
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+
+# Internal services (auto-configured in Docker)
+RASA_BASE_URL=http://rasa:5005
+BACKEND_HOST=http://backend:8000
+```
+
+### 3. Deploy with Docker
+
 ```bash
+# Build and start all services
 docker compose up --build
+
+# Or run in background
+docker compose up -d --build
 ```
 
-Services will be available at:
-- Frontend Dashboard: http://localhost
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
-- Rasa Server: http://localhost:5005
+### 4. Access Services
 
-### Local Development Setup
+- **Frontend Dashboard:** http://localhost
+- **Backend API:** http://localhost:8000
+- **API Documentation:** http://localhost:8000/docs
+- **Rasa Server:** http://localhost:5005
 
-1. **Rasa Setup**:
+## 📱 Messaging Integration
+
+### WhatsApp Setup
+1. Create Meta Developer account
+2. Set up WhatsApp Business API
+3. Configure webhook: `https://your-domain.com/webhook/whatsapp`
+4. Add phone number ID and access token to `.env`
+
+### Telegram Setup
+1. Create bot with @BotFather
+2. Set webhook: 
+   ```bash
+   curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+        -d "url=https://your-domain.com/webhook/telegram"
+   ```
+3. Add bot token to `.env`
+
+## 🗂️ Project Structure
+
+```
+ai_public_health_chatbot/
+├── 📁 services/
+│   ├── 📁 backend/           # FastAPI application
+│   │   ├── 📁 app/
+│   │   │   ├── main.py       # Main FastAPI app
+│   │   │   ├── db.py         # Database models
+│   │   │   ├── faqs.py       # FAQ + Gemini integration
+│   │   │   ├── messaging_utils.py # WhatsApp/Telegram
+│   │   │   └── models.py     # Pydantic schemas
+│   │   └── requirements.txt
+│   ├── 📁 rasa/             # NLP Engine
+│   │   ├── 📁 data/         # Training data
+│   │   ├── 📁 actions/      # Custom actions
+│   │   ├── config.yml       # Pipeline config
+│   │   ├── domain.yml       # Bot domain
+│   │   └── requirements.txt
+│   └── 📁 frontend/         # React Dashboard
+│       ├── 📁 src/
+│       │   ├── 📁 pages/    # Dashboard pages
+│       │   ├── 📁 components/ # Reusable components
+│       │   └── main.tsx     # App entry point
+│       └── package.json
+├── 📁 data/                 # Static data
+│   └── mock_outbreaks.json  # Sample outbreak data
+├── 📁 vaccines/             # Vaccination schedules
+│   └── vaccine_schedule.json
+├── docker-compose.yml       # Multi-service deployment
+└── README.md               # This file
+```
+
+## 🔄 Development Workflow
+
+### Local Development
+
+1. **Start Rasa Services:**
 ```bash
-# Terminal 1 - Rasa API
 cd services/rasa
 python -m venv .venv
-.\.venv\Scripts\activate  # Windows
-# OR
 source .venv/bin/activate  # Linux/Mac
+# OR .venv\Scripts\activate  # Windows
+
 pip install -r requirements.txt
 rasa train
+
+# Terminal 1: Rasa server
 rasa run --enable-api --cors "*" -p 5005
 
-# Terminal 2 - Rasa Actions
-cd services/rasa
-.\.venv\Scripts\activate  # Windows
-# OR
-source .venv/bin/activate  # Linux/Mac
+# Terminal 2: Rasa actions
 rasa run actions -p 5055
 ```
 
-2. **Backend Setup**:
+2. **Start Backend:**
 ```bash
 cd services/backend
 python -m venv .venv
-.\.venv\Scripts\activate  # Windows
-# OR
-source .venv/bin/activate  # Linux/Mac
+source .venv/bin/activate
+
 pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --port 8000
 ```
 
-3. **Frontend Setup**:
+3. **Start Frontend:**
 ```bash
 cd services/frontend
 npm install
 npm run dev
 ```
 
-### Environment Configuration
+### Testing
 
-1. Backend (.env):
-```ini
-WHATSAPP_CLOUD_TOKEN=your_token
-TELEGRAM_BOT_TOKEN=your_bot_token
-RASA_BASE_URL=http://localhost:5005
-GEMINI_API_KEY=your_gemini_key
+```bash
+# Test Rasa NLU
+cd services/rasa
+rasa test nlu
+
+# Test backend endpoints
+curl -X GET http://localhost:8000/health
+
+# Test chat functionality
+curl -X POST http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What are dengue symptoms?"}'
 ```
 
-2. For WhatsApp Cloud API:
-- Set up a Meta Developer account
-- Configure webhook URL to `https://<your-host>/webhook/whatsapp`
-- Add `WHATSAPP_CLOUD_TOKEN` to .env
+## 🌐 Multilingual Support
 
-3. For Telegram:
-- Create a bot with @BotFather
-- Set webhook: `https://api.telegram.org/bot<token>/setWebhook?url=https://<your-host>/webhook/telegram`
-- Add `TELEGRAM_BOT_TOKEN` to .env
+The chatbot supports three languages:
+- **English (en):** Primary language
+- **Hindi (hi):** Devanagari script + transliterated queries
+- **Odia (or):** Regional language for Odisha
+
+### Example Queries
+```
+English: "What are dengue symptoms?"
+Hindi: "डेंगू के लक्षण क्या हैं?"
+Transliterated: "dengue ke lakshan kya hai"
+Odia: "ଡେଙ୍ଗୁର ଲକ୍ଷଣ କଣ?"
+```
+
+## 📊 Features
+
+### ✅ Implemented
+- [x] Multi-channel messaging (WhatsApp + Telegram)
+- [x] Hybrid AI response system (FAQ → Gemini → Rasa)
+- [x] Multilingual NLP with transliteration support
+- [x] Subscriber management system
+- [x] Broadcast alert system
+- [x] Real-time dashboard with analytics
+- [x] Vaccination schedule lookup
+- [x] Disease outbreak alerts
+- [x] Docker containerization
+
+### 🚧 In Progress
+- [ ] Advanced analytics and reporting
+- [ ] Integration with government health APIs
+- [ ] Voice message support
+- [ ] SMS fallback integration
+
+### 📋 Planned
+- [ ] Machine learning model for outbreak prediction
+- [ ] Integration with hospital management systems
+- [ ] Mobile app for health workers
+- [ ] Advanced user segmentation
+
+## 🔒 Safety & Compliance
+
+- **Medical Disclaimers:** All health advice includes safety disclaimers
+- **Fallback Threshold:** Conservative 0.3 threshold for Rasa responses
+- **Data Privacy:** Local SQLite database, no external data sharing
+- **Content Validation:** All health content reviewed by domain experts
+
+## 🚀 Deployment
+
+### Production Deployment
+
+1. **Set up domain and SSL:**
+```bash
+# Configure your domain to point to server
+# Set up SSL certificate (Let's Encrypt recommended)
+```
+
+2. **Environment variables:**
+```bash
+# Production .env
+GEMINI_API_KEY=prod_key
+WHATSAPP_CLOUD_TOKEN=prod_token
+TELEGRAM_BOT_TOKEN=prod_token
+```
+
+3. **Deploy with Docker:**
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Health Checks
+
+All services include health check endpoints:
+- Backend: `GET /health`
+- Rasa: `GET /health` (port 5005)
+- Frontend: HTTP 200 on root path
+
+## 📈 Monitoring & Analytics
+
+The dashboard provides:
+- **Real-time Metrics:** Active users, message volume
+- **Engagement Analytics:** Response rates, popular queries
+- **Health Insights:** Disease trends, vaccination coverage
+- **System Health:** Service status, response times
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
+
+## 📄 License
+
+This project is developed for Government of Odisha under PSID 25049.
+
+## 🆘 Support
+
+For technical support or questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the troubleshooting section in STATUS.md
 
 ---
 
-## Project Structure
-```
-ai_public_health_chatbot/
-├─ README.md
-├─ docker-compose.yml
-├─ .env.example
-├─ data/
-│  └─ mock_outbreaks.json
-├─ vaccines/
-│  └─ vaccine_schedule.json
-├─ services/
-│  ├─ rasa/
-│  │  ├─ requirements.txt
-│  │  ├─ config.yml
-│  │  ├─ domain.yml
-│  │  ├─ credentials.yml
-│  │  ├─ endpoints.yml
-│  │  ├─ data/
-│  │  │  ├─ nlu.yml
-│  │  │  ├─ stories.yml
-│  │  │  └─ rules.yml
-│  │  └─ actions/
-│  │     └─ actions.py
-│  ├─ backend/
-│  │  ├─ requirements.txt
-│  │  ├─ .env.example
-│  │  └─ app/
-│  │     ├─ main.py
-│  │     ├─ config.py
-│  │     ├─ db.py
-│  │     ├─ models.py
-│  │     ├─ schemas.py
-│  │     └─ twilio_utils.py
-│  └─ frontend/
-│     ├─ package.json
-│     ├─ tsconfig.json
-│     ├─ vite.config.ts
-│     ├─ postcss.config.js
-│     ├─ tailwind.config.ts
-│     ├─ index.html
-│     ├─ src/
-│     │  ├─ main.tsx
-│     │  ├─ App.tsx
-│     │  ├─ styles.css
-│     │  ├─ pages/
-│     │  │  ├─ Dashboard.tsx
-│     │  │  ├─ Subscribers.tsx
-│     │  │  └─ Alerts.tsx
-│     │  └─ components/
-│     │     ├─ Card.tsx
-│     │     ├─ Header.tsx
-│     │     └─ LanguageBadge.tsx
-└─ Makefile
-```
-
----
-
-## Accuracy, UX & Impact
-- **≥80% accuracy**: curated NLU examples, multilingual transformer, fallbacks, clarifying questions, and safe completion.
-- **Awareness +20%**: dashboard metrics (reach, unique users), broadcast campaigns, localized content, A/B messaging.
-- **Best UX**: large touch targets, language badge, instant opt-in links, dark-ready palette, WCAG AA contrast.
-
-Happy building! 🙌
-
-## Messaging integrations: WhatsApp Cloud API + Telegram (no Twilio required)
-This project has been updated to support Meta's **WhatsApp Cloud API** and **Telegram Bot API**.
-- For WhatsApp: set `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_CLOUD_TOKEN` in `services/backend/.env`.
-- For Telegram: set `TELEGRAM_BOT_TOKEN` and call `https://api.telegram.org/bot<token>/setWebhook` to point to `https://<your-host>/webhook/telegram`.
-
-Incoming webhook endpoints:
-- `/webhook/whatsapp` — receive messages from WhatsApp Cloud API
-- `/webhook/telegram` — receive messages from Telegram
-
-Outgoing messages use the Cloud API / Telegram Bot API from the backend (no Twilio).
-
+**Built with ❤️ for public health awareness in Odisha**
